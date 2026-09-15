@@ -7,7 +7,7 @@ async function scrape() {
     
     const browser = await puppeteer.launch({
         headless: 'new',
-        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu']
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu', '--disable-dev-shm-usage']
     });
     
     try {
@@ -17,36 +17,45 @@ async function scrape() {
         await page.setRequestInterception(true);
         
         page.on('response', async (response) => {
-            if (response.url().includes('api.fmp.live/query') && response.status() === 200) {
+            const url = response.url();
+            // URL matching ကို နည်းနည်းပိုကျယ်အောင် လုပ်ထားပါတယ်
+            if (url.includes('fmp.live') && url.includes('query') && response.status() === 200) {
                 try {
-                    capturedData = await response.json();
-                    console.log('✅ Intercepted API data!');
+                    const text = await response.text();
+                    try {
+                        capturedData = JSON.parse(text);
+                        console.log('✅ Intercepted API data successfully! URL:', url);
+                    } catch (e) {
+                        // It's not a JSON response, ignore
+                    }
                 } catch (e) {
-                    // Ignore parse errors for non-JSON responses
+                    console.error('Error reading response:', e.message);
                 }
             }
         });
         
         console.log('🌐 Navigating to fmp.live...');
-        // Timeout ကို ၆၀ စက္ကန့်တိုးထားပြီး domcontentloaded ကိုသုံးထားပါတယ်
         await page.goto('https://fmp.live/#live', { 
-            waitUntil: 'domcontentloaded',
+            waitUntil: 'networkidle2', // Network ငြိမ်သွားတဲ့အထိ စောင့်မယ်
             timeout: 60000 
         });
         
-        // Data load ဖြစ်ဖို့ ၁၀ စက္ကန့် စောင့်မယ်
-        console.log('⏳ Waiting for data to load...');
-        await new Promise(r => setTimeout(r, 10000));
+        console.log('⏳ Waiting 15 seconds for data to load...');
+        await new Promise(r => setTimeout(r, 15000)); // 15 စက္ကန့် စောင့်ပေးမယ်
         
         if (capturedData && capturedData.data) {
             console.log('🔄 Processing data...');
             const processedData = processData(capturedData.data);
             
-            const outputPath = path.join(process.cwd(), 'fmp_data.json');
-            fs.writeFileSync(outputPath, JSON.stringify(processedData, null, 2));
-            console.log(`💾 Saved ${processedData.length} matches to fmp_data.json`);
+            if (processedData.length > 0) {
+                const outputPath = path.join(process.cwd(), 'fmp_data.json');
+                fs.writeFileSync(outputPath, JSON.stringify(processedData, null, 2));
+                console.log(`💾 Successfully saved ${processedData.length} matches to fmp_data.json`);
+            } else {
+                console.log('⚠️ Data captured, but processed array is empty.');
+            }
         } else {
-            console.log('⚠️ No data captured. File will not be created.');
+            console.log('❌ No data captured. The website might be blocking the scraper or the API URL changed.');
         }
         
     } catch (error) {
