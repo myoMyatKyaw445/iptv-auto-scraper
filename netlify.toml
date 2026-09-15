@@ -1,0 +1,8 @@
+[build]
+  functions = "netlify/functions"
+
+[[redirects]]
+  from = "/playlist.m3u"
+  to = "/.netlify/functions/playlist"
+  status = 200
+  force = true
