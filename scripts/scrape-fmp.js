@@ -3,11 +3,11 @@ const fs = require('fs');
 const path = require('path');
 
 async function scrape() {
-    console.log(' Starting FMP scraper...');
+    console.log('🚀 Starting FMP scraper...');
     
     const browser = await puppeteer.launch({
         headless: 'new',
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu']
     });
     
     try {
@@ -22,32 +22,35 @@ async function scrape() {
                     capturedData = await response.json();
                     console.log('✅ Intercepted API data!');
                 } catch (e) {
-                    console.error('JSON parse error');
+                    // Ignore parse errors for non-JSON responses
                 }
             }
         });
         
         console.log('🌐 Navigating to fmp.live...');
+        // Timeout ကို ၆၀ စက္ကန့်တိုးထားပြီး domcontentloaded ကိုသုံးထားပါတယ်
         await page.goto('https://fmp.live/#live', { 
-            waitUntil: 'networkidle2',
-            timeout: 30000 
+            waitUntil: 'domcontentloaded',
+            timeout: 60000 
         });
         
-        await new Promise(r => setTimeout(r, 5000));
+        // Data load ဖြစ်ဖို့ ၁၀ စက္ကန့် စောင့်မယ်
+        console.log('⏳ Waiting for data to load...');
+        await new Promise(r => setTimeout(r, 10000));
         
         if (capturedData && capturedData.data) {
-            console.log(' Processing data...');
+            console.log('🔄 Processing data...');
             const processedData = processData(capturedData.data);
             
             const outputPath = path.join(process.cwd(), 'fmp_data.json');
             fs.writeFileSync(outputPath, JSON.stringify(processedData, null, 2));
             console.log(`💾 Saved ${processedData.length} matches to fmp_data.json`);
         } else {
-            console.log('️ No data captured');
+            console.log('⚠️ No data captured. File will not be created.');
         }
         
     } catch (error) {
-        console.error('❌ Error:', error.message);
+        console.error('❌ Scraper Error:', error.message);
     } finally {
         await browser.close();
     }

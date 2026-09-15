@@ -2,8 +2,8 @@ name: Auto Scrape FMP Live Data
 
 on:
   schedule:
-    - cron: '*/3 * * * *'  # 3 မိနစ်တိုင်း အလိုအလျောက် run
-  workflow_dispatch:        # Manual run လို့လည်းရ
+    - cron: '*/3 * * * *'
+  workflow_dispatch:
 
 jobs:
   scrape-and-update:
@@ -28,6 +28,13 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add fmp_data.json
-          git diff --staged --quiet || git commit -m "Auto-update: FMP Live Data"
-          git push https://${{ secrets.PAT }}@github.com/myoMyatKyaw445/iptv-auto-scraper.git main
+          
+          # ဖိုင်ရှိမှသာ git add လုပ်မယ်၊ မရှိရင် skip လုပ်မယ်
+          if [ -f "fmp_data.json" ]; then
+            git add fmp_data.json
+            git diff --staged --quiet || git commit -m "Auto-update: FMP Live Data"
+            git push https://${{ secrets.PAT }}@github.com/myoMyatKyaw445/iptv-auto-scraper.git main
+            echo "🚀 Pushed to GitHub successfully!"
+          else
+            echo "⚠️ fmp_data.json was not created. Skipping git push."
+          fi
