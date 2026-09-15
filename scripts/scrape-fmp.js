@@ -1,32 +1,45 @@
-const puppeteer = require('puppeteer');
+const puppeteer = require('puppeteer-extra');
+const StealthPlugin = require('puppeteer-extra-plugin-stealth');
 const fs = require('fs');
 const path = require('path');
 
+// Stealth Plugin ကို အသုံးပြုမယ် (Bot detection ကို ကျော်ဖြတ်ရန်)
+puppeteer.use(StealthPlugin());
+
 async function scrape() {
-    console.log('🚀 Starting FMP scraper...');
+    console.log('🚀 Starting FMP scraper with Stealth Mode...');
     
     const browser = await puppeteer.launch({
         headless: 'new',
-        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-gpu', '--disable-dev-shm-usage']
+        args: [
+            '--no-sandbox', 
+            '--disable-setuid-sandbox', 
+            '--disable-dev-shm-usage',
+            '--disable-gpu',
+            '--disable-features=IsolateOrigins,site-per-process'
+        ]
     });
     
     try {
         const page = await browser.newPage();
+        
+        // User-Agent ကို ပုံမှန် Chrome ဖြစ်အောင် ပြောင်းမယ်
+        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+        
         let capturedData = null;
         
         await page.setRequestInterception(true);
         
         page.on('response', async (response) => {
             const url = response.url();
-            // URL matching ကို နည်းနည်းပိုကျယ်အောင် လုပ်ထားပါတယ်
             if (url.includes('fmp.live') && url.includes('query') && response.status() === 200) {
                 try {
                     const text = await response.text();
                     try {
                         capturedData = JSON.parse(text);
-                        console.log('✅ Intercepted API data successfully! URL:', url);
+                        console.log('✅ Intercepted API data successfully!');
                     } catch (e) {
-                        // It's not a JSON response, ignore
+                        // Not JSON, ignore
                     }
                 } catch (e) {
                     console.error('Error reading response:', e.message);
@@ -35,13 +48,14 @@ async function scrape() {
         });
         
         console.log('🌐 Navigating to fmp.live...');
+        // domcontentloaded ကိုသုံးပြီး Timeout ကို ၉၀ စက္ကန့်အထိ တိုးထားပါတယ်
         await page.goto('https://fmp.live/#live', { 
-            waitUntil: 'networkidle2', // Network ငြိမ်သွားတဲ့အထိ စောင့်မယ်
-            timeout: 60000 
+            waitUntil: 'domcontentloaded',
+            timeout: 90000 
         });
         
-        console.log('⏳ Waiting 15 seconds for data to load...');
-        await new Promise(r => setTimeout(r, 15000)); // 15 စက္ကန့် စောင့်ပေးမယ်
+        console.log('⏳ Waiting 15 seconds for background API calls to finish...');
+        await new Promise(r => setTimeout(r, 15000));
         
         if (capturedData && capturedData.data) {
             console.log('🔄 Processing data...');
@@ -55,7 +69,7 @@ async function scrape() {
                 console.log('⚠️ Data captured, but processed array is empty.');
             }
         } else {
-            console.log('❌ No data captured. The website might be blocking the scraper or the API URL changed.');
+            console.log('❌ No data captured. Website might still be blocking or API structure changed.');
         }
         
     } catch (error) {

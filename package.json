@@ -1,15 +1,18 @@
 {
   "name": "iptv-auto-scraper",
   "version": "1.0.0",
-  "main": "index.js",
+  "description": "Auto scrape FMP live data and generate IPTV playlist",
+  "main": "scripts/scrape-fmp.js",
   "scripts": {
+    "scrape": "node scripts/scrape-fmp.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "keywords": [],
+  "keywords": ["iptv", "scraper", "fmp"],
   "author": "",
   "license": "ISC",
-  "description": "",
   "dependencies": {
-    "puppeteer": "^24.43.1"
+    "puppeteer": "^22.0.0",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2"
   }
 }
